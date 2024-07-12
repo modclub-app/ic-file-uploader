@@ -1,7 +1,7 @@
 [package]
 name = "ic-file-uploader"
 version = "0.1.0"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Jeshli <Jeshli.Eth@gmail.com>"]
 edition = "2021"
 description = "A utility for uploading files to Internet Computer canisters."
 license = "MIT OR Apache-2.0"
