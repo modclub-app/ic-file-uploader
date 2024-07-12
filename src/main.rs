@@ -59,7 +59,7 @@ fn main() -> Result<(), String> {
         // if we hit an error from upload chunk we should keep track of our current index
         // pause and retry
         if let Err(e) = upload_chunk(
-            &format!("{canister_name} model"),
+            &format!("{canister_name} file"),
             canister_name,
             model_chunk,
             canister_method_name,
@@ -146,7 +146,7 @@ pub fn upload_chunk(name: &str,
     )?;
 
     // 0-indexing to 1-indexing
-    let chunk_number = chunk_number + 1;
+    let chunk_number_display = chunk_number + 1;
 
     if output.status.success() {
         println!("Uploading {name} chunk {chunk_number_display}/{chunk_total}");
