@@ -1,5 +1,8 @@
 # ic-file-uploader
 
+[![crates.io](https://img.shields.io/crates/v/ic-file-uploader.svg)](https://crates.io/crates/ic-file-uploader)
+[![docs.rs](https://docs.rs/ic-file-uploader/badge.svg)](https://docs.rs/ic-file-uploader)
+
 **ic-file-uploader** is a Rust crate designed to facilitate the efficient uploading of files to the Internet Computer. This crate focuses on breaking down large files into manageable chunks that fit within packet size limits and passing them to update calls which write these chunks to files.
 
 ## Features

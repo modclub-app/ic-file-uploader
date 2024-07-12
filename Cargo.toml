@@ -5,6 +5,10 @@ authors = ["Jeshli <Jeshli.Eth@gmail.com>"]
 edition = "2021"
 description = "A utility for uploading files to Internet Computer canisters."
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/modclub-app/ic-file-uploader"
+homepage = "https://github.com/modclub-app/ic-file-uploader"
+documentation = "https://docs.rs/ic-file-uploader"
+readme = "README.md"
 
 [dependencies]
 tempfile = "3.9.0"

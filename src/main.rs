@@ -1,5 +1,3 @@
-
-
 use std::env;
 use std::fs;
 use std::process::Command;
@@ -7,9 +5,16 @@ use std::io::Write;
 use std::path::Path;
 use tempfile::NamedTempFile;
 
+/// The maximum size of the HTTP payload for canister updates, set to 2 MiB.
 pub const MAX_CANISTER_HTTP_PAYLOAD_SIZE: usize = 2 * 1000 * 1000; // 2 MiB
 
-
+/// The main function for the ic-file-uploader crate.
+///
+/// This function processes command line arguments to determine the canister name, canister method name, file path, and optional arguments like offset, network type, and autoresume. It then reads the file, splits it into chunks, and uploads each chunk to the specified canister method.
+///
+/// # Returns
+///
+/// A `Result` indicating success (`Ok(())`) or an error message (`Err(String)`).
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
 
@@ -24,7 +29,7 @@ fn main() -> Result<(), String> {
     let file_path = &args[3];
     let mut start_ind: usize = 0;
     let mut network_type: Option<&str> = None;
-    let mut autoresume = false;  //likely need a canister call for this to get length
+    let mut autoresume = false;  // likely need a canister call for this to get length
 
     // Parse arguments
     let mut i = 4;
@@ -54,7 +59,6 @@ fn main() -> Result<(), String> {
     let model_chunks = split_into_chunks(model_data, MAX_CANISTER_HTTP_PAYLOAD_SIZE, start_ind);
 
     for (index, model_chunk) in model_chunks.iter().enumerate() {
-
         // chunk number / index is a reference which is increasing
         // if we hit an error from upload chunk we should keep track of our current index
         // pause and retry
@@ -70,14 +74,22 @@ fn main() -> Result<(), String> {
             eprintln!("Error uploading chunk {}: {}", index, e);
             return Err(format!("Upload interrupted at chunk {}: {}", index, e));
         }
-
     }
 
     Ok(())
 }
 
-
-
+/// Splits the data into chunks.
+///
+/// # Arguments
+///
+/// * `data` - A vector of bytes representing the data to be split.
+/// * `chunk_size` - The size of each chunk.
+/// * `start_ind` - The starting index for chunking.
+///
+/// # Returns
+///
+/// A vector of byte vectors, each representing a chunk of the original data.
 fn split_into_chunks(data: Vec<u8>, chunk_size: usize, start_ind: usize) -> Vec<Vec<u8>> {
     (start_ind..data.len())
         .step_by(chunk_size)
@@ -87,30 +99,36 @@ fn split_into_chunks(data: Vec<u8>, chunk_size: usize, start_ind: usize) -> Vec<
         })
         .collect()
 }
-/*
-pub fn split_into_chunks(data: Vec<u8>, chunk_size: usize, start_ind: usize) -> Vec<Vec<u8>> {
-    let mut chunks = Vec::new();
-    let mut start = start_ind;
-    let data_len = data.len();
-    println!("Data Length {}", data_len);
-    while start < data_len {
-        let end = usize::min(start + chunk_size, data_len);
-        chunks.push(data[start..end].to_vec());
-        start = end;
-    }
-    chunks
-}
-*/
 
-
+/// Converts a vector of bytes to a blob string.
+///
+/// # Arguments
+///
+/// * `data` - A slice of bytes to be converted.
+///
+/// # Returns
+///
+/// A string representation of the blob data.
 fn vec_u8_to_blob_string(data: &[u8]) -> String {
     let blob_content: String = data.iter().map(|&byte| format!("\\{:02X}", byte)).collect();
     format!("(blob \"{}\")", blob_content)
 }
 
-
-
-// this should return an index of last
+/// Uploads a chunk of data to the specified canister method.
+///
+/// # Arguments
+///
+/// * `name` - The name of the chunk being uploaded.
+/// * `canister_name` - The name of the canister.
+/// * `bytecode_chunk` - A reference to the vector of bytes representing the chunk.
+/// * `canister_method_name` - The name of the canister method to call.
+/// * `chunk_number` - The number of the current chunk.
+/// * `chunk_total` - The total number of chunks.
+/// * `network` - An optional network type.
+///
+/// # Returns
+///
+/// A `Result` indicating success (`Ok(())`) or an error message (`Err(String)`).
 pub fn upload_chunk(name: &str,
     canister_name: &str,
     bytecode_chunk: &Vec<u8>,
@@ -121,8 +139,7 @@ pub fn upload_chunk(name: &str,
 
     let blob_string = vec_u8_to_blob_string(bytecode_chunk);
 
-    let mut temp_file =
-        NamedTempFile::new()
+    let mut temp_file = NamedTempFile::new()
         .map_err(|_| create_error_string("Failed to create temporary file"))?;
 
     temp_file
@@ -140,7 +157,6 @@ pub fn upload_chunk(name: &str,
             temp_file.path().to_str().ok_or(create_error_string(
                 "temp_file path could not be converted to &str",
             ))?,
-            //&file_contents
         ],
         network, // Pass the optional network argument
     )?;
@@ -159,7 +175,18 @@ pub fn upload_chunk(name: &str,
     Ok(())
 }
 
-
+/// Executes a dfx command with the specified arguments.
+///
+/// # Arguments
+///
+/// * `command` - The main dfx command to run.
+/// * `subcommand` - The subcommand to execute.
+/// * `args` - A vector of arguments for the command.
+/// * `network` - An optional network type.
+///
+/// # Returns
+///
+/// A `Result` containing the output of the command or an error message.
 pub fn dfx(command: &str, subcommand: &str, args: &Vec<&str>, network: Option<&str>) -> Result<std::process::Output, String> {
     let mut dfx_command = Command::new("dfx");
     dfx_command.arg(command);
@@ -177,7 +204,15 @@ pub fn dfx(command: &str, subcommand: &str, args: &Vec<&str>, network: Option<&s
     dfx_command.output().map_err(|e| e.to_string())
 }
 
-
+/// Creates a formatted error string.
+///
+/// # Arguments
+///
+/// * `message` - The error message to format.
+///
+/// # Returns
+///
+/// A formatted error string.
 pub fn create_error_string(message: &str) -> String {
     format!("Upload Error: {message}")
 }
