@@ -1,5 +1,6 @@
 use std::process::Command;
 use std::io::Write;
+use tempfile::NamedTempFile;
 
 /// The maximum size of the HTTP payload for canister updates, set to 2 MiB.
 pub const MAX_CANISTER_HTTP_PAYLOAD_SIZE: usize = 2 * 1000 * 1000; // 2 MiB

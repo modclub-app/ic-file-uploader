@@ -3,10 +3,6 @@ use std::fs;
 use std::path::Path;
 use ic_file_uploader::{split_into_chunks, upload_chunk, create_error_string, MAX_CANISTER_HTTP_PAYLOAD_SIZE};
 
-
-/// The maximum size of the HTTP payload for canister updates, set to 2 MiB.
-pub const MAX_CANISTER_HTTP_PAYLOAD_SIZE: usize = 2 * 1000 * 1000; // 2 MiB
-
 /// The main function for the ic-file-uploader crate.
 ///
 /// This function processes command line arguments to determine the canister name, canister method name, file path, and optional arguments like offset, network type, and autoresume. It then reads the file, splits it into chunks, and uploads each chunk to the specified canister method.
