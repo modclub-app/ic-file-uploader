@@ -1,75 +1,76 @@
-use std::env;
+#![warn(missing_docs)]
+
+//! This is a command-line tool for uploading files to Internet Computer canisters.
+//!
+//! It provides functionality to split files into chunks and upload them to specified canisters
+//! using the Internet Computer protocol. The tool supports various options such as specifying
+//! the canister name, method name, file path, and network type.
+
 use std::fs;
+use clap::Parser;
 use std::path::Path;
-use ic_file_uploader::{split_into_chunks, upload_chunk, create_error_string, MAX_CANISTER_HTTP_PAYLOAD_SIZE};
+use ic_file_uploader::{split_into_chunks, upload_chunk, MAX_CANISTER_HTTP_PAYLOAD_SIZE};
+
+
+/// Command line arguments for the ic-file-uploader
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Name of the canister
+    #[arg(short, long)]
+    canister_name: String,
+
+    /// Name of the canister method
+    #[arg(short, long)]
+    canister_method: String,
+
+    /// Path to the file to be uploaded
+    #[arg(short, long)]
+    file_path: String,
+
+    /// Starting index for chunking (optional)
+    #[arg(short, long, default_value = "0")]
+    offset: usize,
+
+    /// Network type (optional)
+    #[arg(short, long)]
+    network: Option<String>,
+
+    /// Enable autoresume (optional, not yet implemented)
+    #[arg(short, long, hide = true)]
+    _autoresume: bool,
+}
+
 
 /// The main function for the ic-file-uploader crate.
 ///
-/// This function processes command line arguments to determine the canister name, canister method name, file path, and optional arguments like offset, network type, and autoresume. It then reads the file, splits it into chunks, and uploads each chunk to the specified canister method.
-///
-/// # Returns
-///
-/// A `Result` indicating success (`Ok(())`) or an error message (`Err(String)`).
+/// This function parses command line arguments, reads the specified file,
+/// splits it into chunks, and uploads each chunk to the specified canister method.
 fn main() -> Result<(), String> {
-    let args: Vec<String> = env::args().collect();
+    let args = Args::parse();
 
-    // Ensure there are enough arguments
-    if args.len() < 4 {
-        return Err("Not enough arguments. Usage: <program> <canister_name> <canister_method_name> <file_path> [--offset <start_ind>] [--network <network_type>] [--autoresume <true/false>]".to_string());
-    }
-
-    // Default values for optional arguments
-    let canister_name = &args[1];
-    let canister_method_name = &args[2];
-    let file_path = &args[3];
-    let mut start_ind: usize = 0;
-    let mut network_type: Option<&str> = None;
-    let mut autoresume = false;  // likely need a canister call for this to get length
-
-    // Parse arguments
-    let mut i = 4;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--offset" => {
-                i += 1;
-                start_ind = args[i].parse().map_err(|_| "Failed to parse start_ind as integer")?;
-            }
-            "--network" => {
-                i += 1;
-                network_type = Some(&args[i]);
-            }
-            "--autoresume" => {
-                i += 1;
-                autoresume = args[i].parse().map_err(|_| "Failed to parse autoresume as boolean")?;
-            }
-            _ => return Err(format!("Unknown argument: {}", args[i])),
-        }
-        i += 1;
-    }
-
-    let bytes_path = Path::new(file_path);
-    println!("Uploading {}", file_path);
+    let bytes_path = Path::new(&args.file_path);
+    println!("Uploading {}", args.file_path);
 
     let model_data = fs::read(&bytes_path).map_err(|e| e.to_string())?;
-    let model_chunks = split_into_chunks(model_data, MAX_CANISTER_HTTP_PAYLOAD_SIZE, start_ind);
+    let model_chunks = split_into_chunks(model_data, MAX_CANISTER_HTTP_PAYLOAD_SIZE, args.offset);
 
     for (index, model_chunk) in model_chunks.iter().enumerate() {
-        // chunk number / index is a reference which is increasing
-        // if we hit an error from upload chunk we should keep track of our current index
-        // pause and retry
         if let Err(e) = upload_chunk(
-            &format!("{canister_name} file"),
-            canister_name,
+            &format!("{} file", args.canister_name),
+            &args.canister_name,
             model_chunk,
-            canister_method_name,
+            &args.canister_method,
             index,
             model_chunks.len(),
-            network_type,
+            args.network.as_deref(),
         ) {
             eprintln!("Error uploading chunk {}: {}", index, e);
             return Err(format!("Upload interrupted at chunk {}: {}", index, e));
         }
     }
+
+    // TODO: Implement autoresume functionality using the args.autoresume flag
 
     Ok(())
 }
