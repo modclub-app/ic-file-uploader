@@ -11,6 +11,7 @@ documentation = "https://docs.rs/ic-file-uploader"
 readme = "README.md"
 
 [dependencies]
+clap = { version = "4.5.9", features = ["derive"] }
 tempfile = "3.9.0"
 
 [[bin]]
