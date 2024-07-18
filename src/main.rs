@@ -17,15 +17,15 @@ use ic_file_uploader::{split_into_chunks, upload_chunk, MAX_CANISTER_HTTP_PAYLOA
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Name of the canister
-    #[arg(short, long)]
+    //#[arg(short, long)]
     canister_name: String,
 
     /// Name of the canister method
-    #[arg(short, long)]
+    //#[arg(short, long)]
     canister_method: String,
 
     /// Path to the file to be uploaded
-    #[arg(short, long)]
+    //#[arg(short, long)]
     file_path: String,
 
     /// Starting index for chunking (optional)
