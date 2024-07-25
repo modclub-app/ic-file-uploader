@@ -62,50 +62,53 @@ pub fn vec_u8_to_blob_string(data: &[u8]) -> String {
 /// # Returns
 ///
 /// A `Result` indicating success (`Ok(())`) or an error message (`Err(String)`).
-pub fn upload_chunk(name: &str,
+pub async fn upload_chunk(
     canister_name: &str,
-    bytecode_chunk: &Vec<u8>,
+    bytecode_chunk: Vec<u8>,
     canister_method_name: &str,
-    chunk_number: usize,
+    index: usize,
     chunk_total: usize,
-    network: Option<&str>) -> Result<(), String> {
+    network: Option<&str>,
+    concurrent: bool,
+) -> Result<(), String> {
+    // Convert to blob string
+    let blob_string = vec_u8_to_blob_string(&bytecode_chunk);
 
-    let blob_string = vec_u8_to_blob_string(bytecode_chunk);
-
+    // Create temporary file
     let mut temp_file = NamedTempFile::new()
         .map_err(|_| create_error_string("Failed to create temporary file"))?;
 
-    temp_file
-        .as_file_mut()
-        .write_all(blob_string.as_bytes())
+    // Write blob string to temp file
+    temp_file.write_all(blob_string.as_bytes())
         .map_err(|_| create_error_string("Failed to write data to temporary file"))?;
 
-    let output = dfx(
-        "canister",
-        "call",
-        &vec![
+    // Prepare arguments for dfx command
+    let args = if concurrent {
+        vec![
             canister_name,
             canister_method_name,
-            "--argument-file",
-            temp_file.path().to_str().ok_or(create_error_string(
-                "temp_file path could not be converted to &str",
-            ))?,
-        ],
-        network, // Pass the optional network argument
-    )?;
+            "--argument",
+            &format!("({}, {})", index, blob_string),
+        ]
+    } else {
+        vec![
+            canister_name,
+            canister_method_name,
+            "--argument",
+            &blob_string,
+        ]
+    };
 
-    // 0-indexing to 1-indexing
-    let chunk_number_display = chunk_number + 1;
+    // Execute dfx command
+    let output = dfx("canister", "call", &args, network)?;
 
     if output.status.success() {
-        println!("Uploading {name} chunk {chunk_number_display}/{chunk_total}");
+        println!("Uploaded chunk {}/{}", index + 1, chunk_total);
+        Ok(())
     } else {
         let error_message = String::from_utf8_lossy(&output.stderr).to_string();
-        eprintln!("Failed to upload chunk {chunk_number_display}: {error_message}");
-        return Err(create_error_string(&format!("Chunk {chunk_number_display} failed: {error_message}")));
+        Err(create_error_string(&format!("Chunk {} failed: {}", index + 1, error_message)))
     }
-
-    Ok(())
 }
 
 /// Executes a dfx command with the specified arguments.

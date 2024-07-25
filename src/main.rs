@@ -39,6 +39,14 @@ struct Args {
     /// Enable autoresume (optional, not yet implemented)
     #[arg(short, long, hide = true)]
     _autoresume: bool,
+
+    /// Enable concurrent uploads
+    #[arg(long, default_value_t = false)]
+    concurrent: bool,
+
+    /// Number of concurrent uploads (default: 5)
+    #[arg(long, default_value = "5")]
+    concurrent_uploads: usize,
 }
 
 
@@ -46,7 +54,8 @@ struct Args {
 ///
 /// This function parses command line arguments, reads the specified file,
 /// splits it into chunks, and uploads each chunk to the specified canister method.
-fn main() -> Result<(), String> {
+#[tokio::main]
+async fn main() -> Result<(), String> {
     let args = Args::parse();
 
     let bytes_path = Path::new(&args.file_path);
@@ -55,22 +64,49 @@ fn main() -> Result<(), String> {
     let model_data = fs::read(&bytes_path).map_err(|e| e.to_string())?;
     let model_chunks = split_into_chunks(model_data, MAX_CANISTER_HTTP_PAYLOAD_SIZE, args.offset);
 
-    for (index, model_chunk) in model_chunks.iter().enumerate() {
-        if let Err(e) = upload_chunk(
-            &format!("{} file", args.canister_name),
-            &args.canister_name,
-            model_chunk,
-            &args.canister_method,
-            index,
-            model_chunks.len(),
-            args.network.as_deref(),
-        ) {
-            eprintln!("Error uploading chunk {}: {}", index, e);
-            return Err(format!("Upload interrupted at chunk {}: {}", index, e));
+    // TODO: Implement autoresume functionality using the args.autoresume flag
+
+    if args.concurrent {
+        let upload_futures = model_chunks.into_iter().enumerate().map(|(index, chunk)| {
+            upload_chunk(
+                &args.canister_name,
+                chunk,
+                &args.canister_method,
+                index,
+                model_chunks.len(),
+                args.network.as_deref(),
+                true,
+            )
+        });
+
+        let results = stream::iter(upload_futures)
+            .buffer_unordered(args.concurrent_uploads)
+            .collect::<Vec<_>>()
+            .await;
+
+        for (index, result) in results.into_iter().enumerate() {
+            if let Err(e) = result {
+                eprintln!("Error uploading chunk {}: {}", index, e);
+                return Err(format!("Upload interrupted at chunk {}: {}", index, e));
+            }
+        }
+
+    } else {
+       for (index, chunk) in model_chunks.iter().enumerate() {
+            if let Err(e) = upload_chunk(
+                &args.canister_name,
+                chunk.clone(),
+                &args.canister_method,
+                index,
+                model_chunks.len(),
+                args.network.as_deref(),
+                false,
+            ).await {
+                eprintln!("Error uploading chunk {}: {}", index, e);
+                return Err(format!("Upload interrupted at chunk {}: {}", index, e));
+            }
         }
     }
-
-    // TODO: Implement autoresume functionality using the args.autoresume flag
 
     Ok(())
 }
