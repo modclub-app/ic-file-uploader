@@ -9,6 +9,7 @@ use std::process::Command;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
+
 /// The maximum size of the HTTP payload for canister updates, set to 2 MiB.
 pub const MAX_CANISTER_HTTP_PAYLOAD_SIZE: usize = 2 * 1000 * 1000; // 2 MiB
 
@@ -83,12 +84,12 @@ pub async fn upload_chunk(
         .map_err(|_| create_error_string("Failed to write data to temporary file"))?;
 
     // Prepare arguments for dfx command
+    let formatted_string = format!("({}, {})", index, blob_string);
     let args = if concurrent {
         vec![
             canister_name,
             canister_method_name,
-            "--argument",
-            &format!("({}, {})", index, blob_string),
+            &formatted_string,
         ]
     } else {
         vec![

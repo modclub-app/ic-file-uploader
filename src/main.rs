@@ -10,7 +10,7 @@ use std::fs;
 use clap::Parser;
 use std::path::Path;
 use ic_file_uploader::{split_into_chunks, upload_chunk, MAX_CANISTER_HTTP_PAYLOAD_SIZE};
-
+use futures::{stream, StreamExt};
 
 /// Command line arguments for the ic-file-uploader
 #[derive(Parser, Debug)]
@@ -65,15 +65,16 @@ async fn main() -> Result<(), String> {
     let model_chunks = split_into_chunks(model_data, MAX_CANISTER_HTTP_PAYLOAD_SIZE, args.offset);
 
     // TODO: Implement autoresume functionality using the args.autoresume flag
+    let model_chunks_len = model_chunks.len();
 
     if args.concurrent {
-        let upload_futures = model_chunks.into_iter().enumerate().map(|(index, chunk)| {
+        let upload_futures = model_chunks.clone().into_iter().enumerate().map(|(index, chunk)| {
             upload_chunk(
                 &args.canister_name,
                 chunk,
                 &args.canister_method,
                 index,
-                model_chunks.len(),
+                model_chunks_len,
                 args.network.as_deref(),
                 true,
             )
@@ -98,7 +99,7 @@ async fn main() -> Result<(), String> {
                 chunk.clone(),
                 &args.canister_method,
                 index,
-                model_chunks.len(),
+                model_chunks_len,
                 args.network.as_deref(),
                 false,
             ).await {
