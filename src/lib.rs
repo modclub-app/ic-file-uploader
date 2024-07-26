@@ -67,50 +67,54 @@ pub async fn upload_chunk(
     canister_name: &str,
     bytecode_chunk: Vec<u8>,
     canister_method_name: &str,
-    index: usize,
+    chunk_number: usize,
     chunk_total: usize,
     network: Option<&str>,
-    concurrent: bool,
-) -> Result<(), String> {
-    // Convert to blob string
+    concurrent: bool) -> Result<(), String> {
+
     let blob_string = vec_u8_to_blob_string(&bytecode_chunk);
 
-    // Create temporary file
     let mut temp_file = NamedTempFile::new()
         .map_err(|_| create_error_string("Failed to create temporary file"))?;
 
-    // Write blob string to temp file
-    temp_file.write_all(blob_string.as_bytes())
-        .map_err(|_| create_error_string("Failed to write data to temporary file"))?;
-
-    // Prepare arguments for dfx command
-    let formatted_string = format!("({}, {})", index, blob_string);
-    let args = if concurrent {
-        vec![
-            canister_name,
-            canister_method_name,
-            &formatted_string,
-        ]
+    if concurrent {
+        let data = format!("({}, {})", chunk_number, blob_string);
+        temp_file
+            .as_file_mut()
+            .write_all(data.as_bytes())
+            .map_err(|_| create_error_string("Failed to write data to temporary file"))?;
     } else {
-        vec![
+        temp_file
+            .as_file_mut()
+            .write_all(blob_string.as_bytes())
+            .map_err(|_| create_error_string("Failed to write data to temporary file"))?;
+    }
+
+    let output = dfx(
+        "canister",
+        "call",
+        &vec![
             canister_name,
             canister_method_name,
-            "--argument",
-            &blob_string,
-        ]
-    };
-
-    // Execute dfx command
-    let output = dfx("canister", "call", &args, network)?;
+            "--argument-file",
+            temp_file.path().to_str().ok_or(create_error_string(
+                "temp_file path could not be converted to &str",
+            ))?,
+        ],
+        network, // Pass the optional network argument
+    )?;
 
     if output.status.success() {
-        println!("Uploaded chunk {}/{}", index + 1, chunk_total);
+        println!("Uploaded chunk {}/{}", chunk_number + 1, chunk_total);
         Ok(())
     } else {
         let error_message = String::from_utf8_lossy(&output.stderr).to_string();
-        Err(create_error_string(&format!("Chunk {} failed: {}", index + 1, error_message)))
+        Err(create_error_string(&format!("Chunk {} failed: {}", chunk_number + 1, error_message)))
     }
+
 }
+
+
 
 /// Executes a dfx command with the specified arguments.
 ///

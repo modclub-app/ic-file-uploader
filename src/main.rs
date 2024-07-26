@@ -66,8 +66,8 @@ async fn main() -> Result<(), String> {
 
     // TODO: Implement autoresume functionality using the args.autoresume flag
     let model_chunks_len = model_chunks.len();
-
     if args.concurrent {
+        /*
         let upload_futures = model_chunks.clone().into_iter().enumerate().map(|(index, chunk)| {
             upload_chunk(
                 &args.canister_name,
@@ -78,6 +78,24 @@ async fn main() -> Result<(), String> {
                 args.network.as_deref(),
                 true,
             )
+        });
+        */
+        let upload_futures = model_chunks.into_iter().enumerate().map(|(index, chunk)| {
+            let canister_name = args.canister_name.clone();
+            let canister_method = args.canister_method.clone();
+            let network = args.network.clone();
+
+            async move {
+                upload_chunk(
+                    &canister_name,
+                    chunk,
+                    &canister_method,
+                    index,
+                    model_chunks_len,
+                    network.as_deref(),
+                    true,
+                ).await
+            }
         });
 
         let results = stream::iter(upload_futures)
@@ -93,10 +111,10 @@ async fn main() -> Result<(), String> {
         }
 
     } else {
-       for (index, chunk) in model_chunks.iter().enumerate() {
+       for (index, chunk) in model_chunks.into_iter().enumerate() {
             if let Err(e) = upload_chunk(
                 &args.canister_name,
-                chunk.clone(),
+                chunk,
                 &args.canister_method,
                 index,
                 model_chunks_len,
@@ -111,4 +129,5 @@ async fn main() -> Result<(), String> {
 
     Ok(())
 }
+
 
